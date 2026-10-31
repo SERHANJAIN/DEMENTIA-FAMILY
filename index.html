@@ -234,6 +234,41 @@ body.dark .care-progress-label{color:#243b53}body.dark .care-progress-label stro
 <script>
 'use strict';
 const DB_NAME='withyou-local',DB_VERSION=1,STATE_KEY='app-state';
+
+    // Shared Supabase demo sync. Use fictional demo data only.
+    const PAL_SUPABASE_URL = 'https://nukmfdejnionugwqgwgo.supabase.co';
+    const PAL_SUPABASE_KEY = 'sb_publishable_HWpCOnO4lnT6cRMTB9zVxg_gSlZ-Rpt';
+    let palRemoteUpdatedAt = '';
+    let palRemoteWriteBusy = false;
+    async function palRemoteRead() {
+      const response = await fetch(PAL_SUPABASE_URL + '/rest/v1/pal_demo?id=eq.shared&select=state,updated_at', { headers: { apikey: PAL_SUPABASE_KEY, Authorization: 'Bearer ' + PAL_SUPABASE_KEY } });
+      if (!response.ok) throw new Error('Supabase read failed (' + response.status + ')');
+      const rows = await response.json();
+      return rows && rows[0] ? rows[0] : null;
+    }
+    async function palRemoteWrite(value) {
+      if (palRemoteWriteBusy) return;
+      palRemoteWriteBusy = true;
+      try {
+        const response = await fetch(PAL_SUPABASE_URL + '/rest/v1/pal_demo?on_conflict=id', { method: 'POST', headers: { apikey: PAL_SUPABASE_KEY, Authorization: 'Bearer ' + PAL_SUPABASE_KEY, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ id: 'shared', state: value, updated_at: new Date().toISOString() }) });
+        if (!response.ok) throw new Error('Supabase save failed (' + response.status + ')');
+        palRemoteUpdatedAt = new Date().toISOString();
+      } finally { palRemoteWriteBusy = false; }
+    }
+    async function palSyncPull(seedIfEmpty = false) {
+      try {
+        const row = await palRemoteRead();
+        if (row && row.updated_at && row.updated_at !== palRemoteUpdatedAt && row.state && Object.keys(row.state).length) {
+          palRemoteUpdatedAt = row.updated_at;
+          if (row.state.profile && Object.keys(row.state.profile).length) {
+            state = { ...state, ...row.state };
+            try { if (db) await new Promise((resolve,reject)=>{ const tx=db.transaction('records','readwrite'); tx.objectStore('records').put(state,STATE_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); else localStorage.setItem('withyou-state', JSON.stringify(state)); } catch (e) {}
+            render();
+          }
+        } else if (!row && seedIfEmpty) { await palRemoteWrite(state); }
+      } catch (error) { console.warn('Pal cloud sync:', error); }
+    }
+
 const $=id=>document.getElementById(id);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const uid=()=>Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
@@ -246,7 +281,7 @@ function loadFamilyPrefs(){const defaults={zones:[],checkins:[],lastSeenLocation
 function saveFamilyPrefs(){localStorage.setItem('pal-family-settings',JSON.stringify(familyPrefs));}
 function openDatabase(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window))return resolve(null);const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('records'))req.result.createObjectStore('records');};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
 async function loadState(){try{db=db||await openDatabase();if(!db){const raw=localStorage.getItem('withyou-state');if(raw)state=JSON.parse(raw);return;}const value=await new Promise((resolve,reject)=>{const tx=db.transaction('records','readonly'),r=tx.objectStore('records').get(STATE_KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error);});if(value)state=value;}catch(e){console.warn('Pal saved data could not be opened.',e);}}
-async function saveState(){try{if(db){await new Promise((resolve,reject)=>{const tx=db.transaction('records','readwrite');tx.objectStore('records').put(state,STATE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}else localStorage.setItem('withyou-state',JSON.stringify(state));if(window.palFamilyChannel)window.palFamilyChannel.postMessage({type:'state-updated',source:'family'});render();}catch(e){toast('Could not save this change. Please refresh and try again.');console.error(e);}}
+async function saveState(){try{if(db){await new Promise((resolve,reject)=>{const tx=db.transaction('records','readwrite');tx.objectStore('records').put(state,STATE_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}else localStorage.setItem('withyou-state',JSON.stringify(state));await palRemoteWrite(state);if(window.palFamilyChannel)window.palFamilyChannel.postMessage({type:'state-updated',source:'family'});render();}catch(e){toast('Could not save this change. Please refresh and try again.');console.error(e);}}
 function toast(message){const el=$('toast');el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,4800);}
 function hello(){const h=new Date().getHours();return h>=5&&h<12?'Good morning':h>=12&&h<17?'Good afternoon':h>=17&&h<21?'Good evening':'Good night';}
 function renderAvatar(gender='woman', large=false, small=false, mood='neutral') {
@@ -359,6 +394,6 @@ if(form.id==='chat-form'){e.preventDefault();const fd=new FormData(form),message
 if('BroadcastChannel'in window){window.palFamilyChannel=new BroadcastChannel('pal-shared-state');window.palFamilyChannel.onmessage=async e=>{if(e.data?.type==='state-updated'&&e.data?.source!=='family'){await loadState();render();checkLocationChange();updateMap();}};}
 window.addEventListener('storage',async e=>{if(e.key==='withyou-state'){await loadState();render();checkLocationChange();updateMap();}});
 }
-async function init(){bind();if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});await loadState();render();if(familyPrefs.zones.length){const z=familyPrefs.zones[0];homePoint={lat:Number(z.lat),lon:Number(z.lon)};}else if(state.profile?.homeAddress){$('zone-form').elements.name.value='Home';$('zone-form').elements.address.value=state.profile.homeAddress;}updateMap();if(state.lastLocation?.updatedAt){familyPrefs.lastSeenLocationAt=familyPrefs.lastSeenLocationAt||state.lastLocation.updatedAt;saveFamilyPrefs();}setInterval(async()=>{await loadState();render();checkLocationChange();checkScheduledAlerts();updateMap();},12000);checkScheduledAlerts();}
+async function init(){bind();if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});await loadState();await palSyncPull(false);render();setInterval(()=>palSyncPull(false),5000);if(familyPrefs.zones.length){const z=familyPrefs.zones[0];homePoint={lat:Number(z.lat),lon:Number(z.lon)};}else if(state.profile?.homeAddress){$('zone-form').elements.name.value='Home';$('zone-form').elements.address.value=state.profile.homeAddress;}updateMap();if(state.lastLocation?.updatedAt){familyPrefs.lastSeenLocationAt=familyPrefs.lastSeenLocationAt||state.lastLocation.updatedAt;saveFamilyPrefs();}setInterval(async()=>{await loadState();render();checkLocationChange();checkScheduledAlerts();updateMap();},12000);checkScheduledAlerts();}
 init();
 </script></body></html>
