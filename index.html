@@ -175,6 +175,13 @@ body.dark .settings-accordion{background:#fff;border-color:#d4e0d8}body.dark .se
 .companion-choice{border:2px solid #d4e0d8;transition:background .15s,border-color .15s,box-shadow .15s}.companion-choice.active{border:2px solid #426b54;background:#dcecdf;box-shadow:0 0 0 3px #426b5426;color:#203e2c}
 body.dark .companion-choice.active{background:#dcecdf;color:#203e2c;border-color:#426b54}
 .care-hub .progress,.care-hub .progress-bar,.care-hub .progress-track,.care-hub progress{height:3px!important;max-height:3px!important;min-height:3px!important;border-radius:99px!important}
+
+/* Fix dark-mode record headings: they should not render as full-width navy bars. */
+body.dark .care-hub .record-main h3{background:transparent!important;color:#172f45!important;padding:0!important;min-height:0!important;box-shadow:none!important}
+body.dark .care-hub .record-main{background:transparent!important}
+body.dark .care-hub .record-actions .btn.outline{background:#fff!important;color:#243b53!important;border:1px solid #cbd8d1!important}
+body.dark .care-hub .record-actions .btn.outline:hover{background:#e8f0e7!important}
+.care-hub .progress,.care-hub .progress-bar,.care-hub .progress-track,.care-hub progress{height:2px!important;max-height:2px!important;min-height:2px!important;border-radius:99px!important;overflow:hidden}
 </style></head>
 <body><div class="shell">
 <header class="topbar">
