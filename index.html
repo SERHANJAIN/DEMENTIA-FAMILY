@@ -383,7 +383,26 @@ function renderCheckins(){$('checkin-list').innerHTML=familyPrefs.checkins.lengt
 const quotes=['“Small moments of kindness can make an ordinary day feel special.”','“A familiar voice can bring comfort, even on a difficult day.”','“Patience is love made visible.”','“A gentle check-in can mean more than you know.”','“Every day holds a moment worth noticing.”','“Care is built from the little things we do, again and again.”','“The best way to care is to help someone feel less alone.”'];
 function renderQuote(){const day=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0).getTime())/86400000);$('daily-quote').textContent=quotes[day%quotes.length];}
 function renderLocationStatus(){const loc=state.lastLocation;if(!loc||!Number.isFinite(Number(loc.lat))||!Number.isFinite(Number(loc.lon))){$('location-status').textContent='No location has been shared yet. Ask the person to open Find my way in Pal and tap Start to share their location.';$('location-badge').textContent='Waiting for location';$('location-time').textContent='No location shared yet.';return;}const age=Date.now()-new Date(loc.updatedAt||0).getTime(),fresh=age>=0&&age<15*60000,when=loc.updatedAt?new Date(loc.updatedAt).toLocaleString([],{dateStyle:'medium',timeStyle:'short'}):'Time unavailable';$('location-status').textContent=fresh?'A recent location has been shared from Pal.':'This is an older location. It may not show where they are now.';$('location-badge').textContent=fresh?'Recently shared':'Last known location';$('location-time').textContent='Last shared: '+when+(loc.accuracy?' · accuracy about '+Math.round(loc.accuracy)+' m':'');}
-async function geocode(address){try{const res=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(address),{headers:{Accept:'application/json'}});if(!res.ok)return null;const rows=await res.json();return rows.length?{lat:Number(rows[0].lat),lon:Number(rows[0].lon)}:null;}catch(e){return null;}}
+async function geocode(address){
+  const q=String(address||'').trim();
+  if(!q)return null;
+  // Try Nominatim first, then Photon as a fallback if the first service is blocked or unavailable.
+  try{
+    const res=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}});
+    if(res.ok){
+      const rows=await res.json();
+      if(rows.length&&Number.isFinite(Number(rows[0].lat))&&Number.isFinite(Number(rows[0].lon)))return {lat:Number(rows[0].lat),lon:Number(rows[0].lon)};
+    }
+  }catch(e){}
+  try{
+    const res=await fetch('https://photon.komoot.io/api/?limit=1&q='+encodeURIComponent(q),{headers:{Accept:'application/json'}});
+    if(res.ok){
+      const data=await res.json(),coords=data.features&&data.features[0]&&data.features[0].geometry&&data.features[0].geometry.coordinates;
+      if(coords&&Number.isFinite(Number(coords[1]))&&Number.isFinite(Number(coords[0])))return {lat:Number(coords[1]),lon:Number(coords[0])};
+    }
+  }catch(e){}
+  return null;
+}
 function distanceMeters(a,b){const rad=x=>x*Math.PI/180,R=6371000,dlat=rad(b.lat-a.lat),dlon=rad(b.lon-a.lon),v=Math.sin(dlat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dlon/2)**2;return 2*R*Math.atan2(Math.sqrt(v),Math.sqrt(1-v));}
 function updateMap(){const loc=state.lastLocation&&Number.isFinite(Number(state.lastLocation.lat))?{lat:Number(state.lastLocation.lat),lon:Number(state.lastLocation.lon)}:null,center=loc||homePoint;if(!window.L||!center){$('map').innerHTML='<div class="map-empty"><div><div style="font-size:34px">⌖</div><strong>Location not available yet</strong><br>When they share their location in Pal, it will appear here.</div></div>';map=null;return;}if(!$('map').querySelector('.leaflet-container')){$('map').innerHTML='';map=L.map('map',{zoomControl:true,scrollWheelZoom:false}).setView([center.lat,center.lon],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);}if(!map)return;if(loc){if(!userMarker)userMarker=L.marker([loc.lat,loc.lon]).addTo(map).bindPopup('Last location shared from Pal');else userMarker.setLatLng([loc.lat,loc.lon]);if(state.lastLocation.accuracy){if(!accuracyCircle)accuracyCircle=L.circle([loc.lat,loc.lon],{radius:state.lastLocation.accuracy,color:'#286b6c',fillOpacity:.08}).addTo(map);else accuracyCircle.setLatLng([loc.lat,loc.lon]).setRadius(state.lastLocation.accuracy);}}else if(homePoint){if(!homeMarker)homeMarker=L.marker([homePoint.lat,homePoint.lon]).addTo(map).bindPopup('Expected place');else homeMarker.setLatLng([homePoint.lat,homePoint.lon]);}map.setView([center.lat,center.lon],Math.max(map.getZoom(),14));setTimeout(()=>map&&map.invalidateSize(),80);}
 function render(){renderHero();renderLists();renderEmergency();renderMoments();renderZones();renderCheckins();renderLocationStatus();renderQuote();document.body.classList.toggle('dark',familyPrefs.theme==='dark');const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=familyPrefs.theme==='dark'?'#0c2034':'#243b53';}
