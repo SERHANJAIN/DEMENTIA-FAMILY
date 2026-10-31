@@ -235,6 +235,38 @@ body.dark .care-progress-label{color:#243b53}body.dark .care-progress-label stro
 'use strict';
 const DB_NAME='withyou-local',DB_VERSION=1,STATE_KEY='app-state';
 
+
+const PAL_PUSH_PUBLIC_KEY = 'BBSJVXxMnKUCLJuZG3KSLx4DcTYHJXHdTvpdqAlDJxGnYThXWfHLGXutpVlbDSxKfF6xAy6bvVCv7Q55b_JW-zw';
+const PAL_PUSH_ENDPOINT = 'https://nukmfdejnionugwqgwgo.supabase.co/functions/v1/send-pal-push';
+function palUrlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const raw = atob((base64String + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+}
+async function palEnablePush(role) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    throw new Error('This browser does not support background notifications.');
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new Error('Please allow notifications in your browser settings.');
+  const registration = await navigator.serviceWorker.register('./sw.js');
+  const ready = await navigator.serviceWorker.ready;
+  let subscription = await ready.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await ready.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: palUrlBase64ToUint8Array(PAL_PUSH_PUBLIC_KEY)
+    });
+  }
+  const response = await fetch(PAL_PUSH_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': PAL_SUPABASE_KEY, 'Authorization': 'Bearer ' + PAL_SUPABASE_KEY },
+    body: JSON.stringify({ action: 'subscribe', role, subscription: subscription.toJSON() })
+  });
+  if (!response.ok) throw new Error('Could not save this browser subscription (' + response.status + ').');
+  return true;
+}
+
     // Shared Supabase demo sync. Use fictional demo data only.
     const PAL_SUPABASE_URL = 'https://nukmfdejnionugwqgwgo.supabase.co';
     const PAL_SUPABASE_KEY = 'sb_publishable_HWpCOnO4lnT6cRMTB9zVxg_gSlZ-Rpt';
@@ -362,7 +394,7 @@ async function refresh(){await loadState();render();checkLocationChange();update
 async function addZone(form){const fd=new FormData(form),name=String(fd.get('name')||'').trim(),address=String(fd.get('address')||'').trim(),radius=Math.max(50,Math.min(2000,Number(fd.get('radius')||300)));if(!name||!address)return;toast('Finding that place on the map…');const point=await geocode(address);if(!point){toast('I could not find that address. Please check it and try again.');return;}familyPrefs.zones.push({id:uid(),name:name,address:address,lat:point.lat,lon:point.lon,radius:radius});if(!homePoint)homePoint=point;saveFamilyPrefs();form.reset();form.querySelector('[name=radius]').value='300';renderZones();updateMap();toast(name+' added as an expected place.');}
 function bind(){
 $('refresh-location').addEventListener('click',refresh);
-$('enable-notifications').addEventListener('click',async()=>{if(!('Notification'in window)){toast('Notifications are not supported in this browser.');return;}const result=await Notification.requestPermission();toast(result==='granted'?'Notifications enabled while this family page stays open.':'Notifications were not enabled.');});
+$('enable-notifications').addEventListener('click',async()=>{if(!('Notification'in window)){toast('Notifications are not supported in this browser.');return;}try{await palEnablePush('family');toast('Background notifications are enabled on this browser.');}catch(err){toast(err.message||'Notifications could not be enabled.');}});
 $('zone-form').addEventListener('submit',e=>{e.preventDefault();addZone(e.currentTarget);});
 $('checkin-form').addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(e.currentTarget);familyPrefs.checkins.push({id:uid(),label:String(fd.get('label')||'').trim()||'Family check-in',time:String(fd.get('time')||'')});saveFamilyPrefs();e.currentTarget.reset();renderCheckins();toast('Daily check-in reminder added.');});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action,id=el.dataset.id;
