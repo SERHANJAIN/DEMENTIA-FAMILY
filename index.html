@@ -3,7 +3,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#243b53">
 <title>Pal · Family</title><link rel="icon" href="./icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <style>
 :root{color-scheme:light;--navy:#243b53;--sage:#e8f0e7;--sage-deep:#426b54;--teal:#dcefed;--peach:#f7e6d9;--terracotta:#a65c48;--ink:#243746;--muted:#61747c;--line:#d8e1dc;--shadow:0 9px 26px #243b5312}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#f1f5f0,#f7f8f5);color:var(--ink);font:16px/1.45 "Atkinson Hyperlegible","Trebuchet MS",Arial,sans-serif}button,input,select{font:inherit}button{cursor:pointer}a{color:inherit}.shell{width:min(100% - 26px,1000px);margin:auto;padding:16px 0 38px}
@@ -230,7 +230,7 @@ body.dark .care-progress-label{color:#243b53}body.dark .care-progress-label stro
 <div class="modal-backdrop" id="moment-overlay" hidden><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="moment-title"><div class="modal-heading"><div><p class="eyebrow">Familiar faces and happy places</p><h2 id="moment-title">Add a moment</h2></div><button class="modal-close" type="button" data-action="moment-close" aria-label="Close">×</button></div><div id="moment-content"></div></section></div>
 <button id="chat-fab" class="chat-fab" type="button" data-action="chat-open" aria-label="Talk with Pal" title="Talk with Pal"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.8 8.8 0 0 1-4-.9L3 21l1.8-4.5a8.7 8.7 0 1 1 16.2-5Z"/><path d="M8 11h8M8 15h5"/></svg></button>
 <section class="chat-panel" id="chat-panel" hidden aria-label="Talk with Pal"><div class="chat-panel-heading"><div class="chat-avatar-mini" id="chat-avatar"></div><div><strong>I'm here with you.</strong><small>Ask me about care, reminders or family.</small></div><button type="button" class="modal-close" data-action="chat-close" aria-label="Close chat">×</button></div><div class="chat-messages" id="chat-messages" aria-live="polite"></div><form id="chat-form" class="chat-compose"><input name="message" id="chat-message" autocomplete="off" maxlength="500" placeholder="Type a message…" required aria-label="Type a message"><button class="send-chat" type="submit" aria-label="Send message">➤</button></form></section><div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script>
 'use strict';
 const DB_NAME='withyou-local',DB_VERSION=1,STATE_KEY='app-state';
