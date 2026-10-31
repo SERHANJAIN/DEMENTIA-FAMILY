@@ -265,7 +265,7 @@ const DB_NAME='withyou-local',DB_VERSION=1,STATE_KEY='app-state';
             try { if (db) await new Promise((resolve,reject)=>{ const tx=db.transaction('records','readwrite'); tx.objectStore('records').put(state,STATE_KEY); tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error); }); else localStorage.setItem('withyou-state', JSON.stringify(state)); } catch (e) {}
             render();
           }
-        } else if (!row && seedIfEmpty) { await palRemoteWrite(state); }
+        } else if ((!row || !row.state || !Object.keys(row.state).length) && seedIfEmpty) { await palRemoteWrite(state); }
       } catch (error) { console.warn('Pal cloud sync:', error); }
     }
 
